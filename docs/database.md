@@ -38,14 +38,13 @@ Catatan:
 Semua query dipusatkan di `app/services/employeeService.ts` (layer service,
 terpisah dari view). Ringkasan operasinya:
 
-| # | Function               | Query Supabase (ringkas)                                              | Halaman |
-| - | ---------------------- | --------------------------------------------------------------------- | ------- |
-| 1 | `getEmployees()`       | `select * from employees order by created_at desc`                    | `/admin/employees` |
-| 2 | `searchEmployees(q)`   | `select ... ilike('full_name', %q%)` atau `ilike('email', %q%)`       | `/admin/employees` |
-| 3 | `getEmployee(id)`      | `select ... eq('id', id).single()`                                    | `/admin/employees/[id]` |
-| 4 | `createEmployee(data)` | `insert { ... }`                                                      | `/admin/employees/create` |
-| 5 | `updateEmployee(id, d)`| `update { ... }.eq('id', id)`                                         | `/admin/employees/[id]` |
-| 6 | `deleteEmployee(id)`   | `delete().eq('id', id)`                                               | modal konfirmasi |
+| # | Function                     | Query Supabase (ringkas)                                              | Halaman |
+| - | ---------------------------- | --------------------------------------------------------------------- | ------- |
+| 1 | `getEmployees(search?)`      | `select * from employees order by created_at desc`; jika search terisi → `.or('full_name.ilike.%q%,email.ilike.%q%')` | `/admin/employees` |
+| 2 | `getEmployee(id)`            | `select * ... eq('id', id).single()`                                  | `/admin/employees/[id]` |
+| 3 | `createEmployee(payload)`    | `insert payload ... select * single()`                                | `/admin/employees/create` |
+| 4 | `updateEmployee(id, payload)`| `update payload ... eq('id', id).select * single()`                   | `/admin/employees/[id]` |
+| 5 | `deleteEmployee(id)`         | `delete() ... eq('id', id)`                                           | modal konfirmasi (flag `NUXT_PUBLIC_ENABLE_DELETE_EMPLOYEE`) |
 
 Detail tiap function (parameter, return, error) dijelaskan lewat komentar
 JSDoc di dalam file service tersebut.
