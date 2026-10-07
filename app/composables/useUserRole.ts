@@ -29,7 +29,13 @@ export function useUserRole() {
       .eq('id', user.value.id)
       .single()
 
-    role.value = !error && data ? (data.role as EmployeeRole) : null
+    if (error) {
+      // Log agar mudah dipantau dari browser console saat debugging
+      console.error('[useUserRole] failed to load role:', error.message, error.code)
+      role.value = null
+    } else {
+      role.value = data ? (data.role as EmployeeRole) : null
+    }
     loading.value = false
   }
 
