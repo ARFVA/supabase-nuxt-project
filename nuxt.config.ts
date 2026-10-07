@@ -13,5 +13,27 @@ export default defineNuxtConfig({
       // Override via .env: NUXT_PUBLIC_ENABLE_DELETE_EMPLOYEE=true
       enableDeleteEmployee: false
     }
+  },
+
+  supabase: {
+    redirect: true,
+    redirectOptions: {
+      login: '/login',
+      callback: '/confirm',
+      // Proteksi hanya area /admin — halaman lain (/, /login) tetap publik
+      include: ['/admin*'],
+      // Simpan path awal di cookie supaya dikembalikan setelah login
+      saveRedirectToCookie: true
+    }
+  },
+
+  nitro: {
+    externals: {
+      // Workaround bug Nuxt 4.6.0 di Windows
+      // (github.com/nuxt/nuxt/issues/36467): path backslash tidak cocok
+      // dengan aturan inline 'nuxt/dist', sehingga semua halaman SSR 500.
+      // Hapus config ini setelah bug diperbaiki di rilis Nuxt berikutnya.
+      inline: [/[/\\]node_modules[/\\]nuxt[/\\]dist[/\\]/]
+    }
   }
 })
