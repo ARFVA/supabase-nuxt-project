@@ -15,6 +15,18 @@ export default defineNuxtConfig({
     }
   },
 
+  supabase: {
+    redirect: true,
+    redirectOptions: {
+      login: '/login',
+      callback: '/confirm',
+      // Proteksi hanya area /admin — halaman lain (/, /login) tetap publik
+      include: ['/admin*'],
+      // Simpan path awal di cookie supaya dikembalikan setelah login
+      saveRedirectToCookie: true
+    }
+  },
+
   nitro: {
     externals: {
       // Workaround bug Nuxt 4.6.0 di Windows
