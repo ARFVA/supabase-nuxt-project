@@ -26,9 +26,8 @@ useHead({ title: 'Employee Admin Dashboard' })
 
     <p class="text-xs text-gray-400">
       Info versi aplikasi:
-      <NuxtLink to="/version" class="underline">
-        GET /version
-      </NuxtLink>
+      <!-- Rute server (server/routes), bukan halaman Vue Router — pakai <a> biasa -->
+      <a href="/version" class="underline">GET /version</a>
     </p>
   </div>
 </template>

@@ -7,7 +7,7 @@ import type { Employee } from '~/services/employeeService'
  */
 const open = defineModel<boolean>('open', { default: false })
 
-defineProps<{
+const props = defineProps<{
   employee: Employee | null
   loading: boolean
 }>()
