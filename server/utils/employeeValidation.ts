@@ -32,6 +32,14 @@ export function validateEmployeePayload(
   const isActive =
     typeof body.is_active === 'boolean' ? body.is_active : true
 
+  // photo_url: null = tanpa foto, string = URL hasil upload Storage
+  let photoUrl: string | null = null
+  if (typeof body.photo_url === 'string') {
+    photoUrl = body.photo_url.trim() || null
+  } else if (body.photo_url === null) {
+    photoUrl = null
+  }
+
   if (!fullName) {
     errors.push('full_name is required')
   }
@@ -59,7 +67,8 @@ export function validateEmployeePayload(
       phone: phone || null,
       address: address || null,
       role,
-      is_active: isActive
+      is_active: isActive,
+      photo_url: photoUrl
     }
   }
 }
