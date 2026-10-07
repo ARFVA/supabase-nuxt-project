@@ -16,7 +16,11 @@ export function useUserRole() {
   const loading = ref(false)
 
   async function fetchRole() {
-    if (!user.value) {
+    // CATATAN @nuxtjs/supabase v2: useSupabaseUser() mengembalikan
+    // JWT payload (bukan object User klasik) — UUID user berada di
+    // klaim `sub`, bukan `id`.
+    const userId = user.value?.sub
+    if (!userId) {
       role.value = null
       return
     }
@@ -26,7 +30,7 @@ export function useUserRole() {
     const { data, error } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', user.value.id)
+      .eq('id', userId)
       .single()
 
     if (error) {
