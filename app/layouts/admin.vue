@@ -4,6 +4,7 @@ const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 const route = useRoute()
 const toast = useToast()
+const { role } = useUserRole()
 
 const menuItems = [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/admin' },
@@ -69,9 +70,20 @@ async function handleLogout() {
         <h1 class="text-lg font-semibold">
           Administration
         </h1>
-        <UBadge color="success" variant="subtle">
-          Authenticated
-        </UBadge>
+        <div class="flex items-center gap-2">
+          <!-- Role dari tabel profiles (bukan hardcode) -->
+          <UBadge
+            v-if="role"
+            color="primary"
+            variant="subtle"
+            class="uppercase"
+          >
+            {{ role }}
+          </UBadge>
+          <UBadge color="success" variant="subtle">
+            Authenticated
+          </UBadge>
+        </div>
       </header>
 
       <main class="flex-1 p-6">

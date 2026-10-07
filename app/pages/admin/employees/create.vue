@@ -11,6 +11,9 @@ useHead({ title: 'Add employee — Employee Admin' })
 const toast = useToast()
 const saving = ref(false)
 
+// Role dari tabel profiles (UX gating) — enforcement tetap di RLS.
+const { canWrite } = useUserRole()
+
 async function handleSubmit(payload: EmployeeInput) {
   saving.value = true
   try {
@@ -40,11 +43,27 @@ async function handleSubmit(payload: EmployeeInput) {
       </p>
     </div>
 
-    <UCard class="max-w-2xl">
+    <UCard
+      v-if="canWrite"
+      class="max-w-2xl"
+    >
       <EmployeeForm
         submit-label="Create"
         :loading="saving"
         @submit="handleSubmit"
+      />
+    </UCard>
+
+    <UCard
+      v-else
+      class="max-w-2xl"
+    >
+      <UAlert
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-lock"
+        title="Not allowed"
+        description="Your role does not have permission to create employees (required: admin or leader)."
       />
     </UCard>
   </div>

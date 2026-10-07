@@ -9,6 +9,11 @@ Fitur utama:
 - Halaman admin `/admin/employees` yang dilindungi route middleware.
 - CRUD karyawan: Create, Read (tabel + pencarian), Update, Delete
   (dengan konfirmasi & feature flag).
+- **REST API** `/api/employees` dengan validasi & auth di server
+  (dokumentasi: [`docs/api.md`](docs/api.md)).
+- **Role-Based RLS**: staff (read-only), leader (create/update), admin (full).
+- **Storage**: upload foto karyawan (kompresi klien, batas 5 MB sesuai SOP).
+- **Realtime**: tabel live-update dari perubahan sesi/tab lain.
 - Endpoint identitas versi `GET /version`.
 
 ## Tech Stack

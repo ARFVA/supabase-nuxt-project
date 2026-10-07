@@ -4,6 +4,7 @@ import {
   deleteEmployee,
   type Employee
 } from '~/services/employeeService'
+import { removeEmployeePhoto } from '~/services/photoService'
 
 // Halaman READ + search + pemicu DELETE (area admin terproteksi middleware).
 definePageMeta({ layout: 'admin' })
@@ -11,11 +12,13 @@ useHead({ title: 'Employees — Employee Admin' })
 
 const toast = useToast()
 const config = useRuntimeConfig()
+const supabase = useSupabaseClient()
+const { role, canWrite, isAdmin } = useUserRole()
 
-// Feature flag (SOP/GRC/DEV-SPB/2026/008 bab 1.3):
-// tombol Delete hanya tampil jika NUXT_PUBLIC_ENABLE_DELETE_EMPLOYEE=true.
+// Feature flag (SOP/GRC/DEV-SPB/2026/008 bab 1.3) + role dari database.
+// UI hanya untuk UX — enforcement tetap di policy RLS.
 const showDelete = computed(
-  () => config.public.enableDeleteEmployee === true
+  () => config.public.enableDeleteEmployee === true && isAdmin.value
 )
 
 const employees = ref<Employee[]>([])
@@ -27,6 +30,10 @@ const loadError = ref('')
 const deleteModalOpen = ref(false)
 const deleteTarget = ref<Employee | null>(null)
 const deleting = ref(false)
+
+// --- Realtime (Supabase postgres_changes) ---
+const realtimeConnected = ref(false)
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null
 
 async function loadData() {
   loading.value = true
@@ -52,7 +59,39 @@ watch(search, () => {
   searchTimer = setTimeout(() => loadData(), 300)
 })
 
-onMounted(() => loadData())
+onMounted(() => {
+  loadData()
+
+  // Subscribe perubahan tabel — data dari sesi/tab lain ikut tampil.
+  realtimeChannel = supabase
+    .channel('employees-realtime')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'employees' },
+      (payload) => {
+        toast.add({
+          title: `Realtime: ${payload.eventType}`,
+          description:
+            (payload.new as Employee | undefined)?.full_name ??
+            (payload.old as Partial<Employee> | undefined)?.full_name ??
+            '',
+          color: 'info',
+          icon: 'i-lucide-radio'
+        })
+        loadData()
+      }
+    )
+    .subscribe((status) => {
+      realtimeConnected.value = status === 'SUBSCRIBED'
+    })
+})
+
+onUnmounted(() => {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+})
 
 function handleEdit(employee: Employee) {
   navigateTo(`/admin/employees/${employee.id}`)
@@ -70,6 +109,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await deleteEmployee(deleteTarget.value.id)
+    // Bersihkan foto dari Storage (best-effort)
+    if (deleteTarget.value.photo_url) {
+      await removeEmployeePhoto(deleteTarget.value.photo_url)
+    }
     toast.add({ title: 'Employee deleted', color: 'success' })
     deleteModalOpen.value = false
     deleteTarget.value = null
@@ -89,16 +132,32 @@ async function confirmDelete() {
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h2 class="text-2xl font-bold">
-          Employees
-        </h2>
-        <p class="text-sm text-gray-500">
-          Manage employee data (create, read, update, delete).
-        </p>
+      <div class="flex items-center gap-3">
+        <div>
+          <h2 class="text-2xl font-bold">
+            Employees
+          </h2>
+          <p class="text-sm text-gray-500">
+            Manage employee data (create, read, update, delete).
+          </p>
+        </div>
+
+        <UBadge
+          :color="realtimeConnected ? 'success' : 'neutral'"
+          variant="subtle"
+          class="flex items-center gap-1"
+        >
+          <UIcon
+            name="i-lucide-radio"
+            class="size-3"
+            :class="realtimeConnected && 'animate-pulse'"
+          />
+          {{ realtimeConnected ? 'Live' : 'Realtime off' }}
+        </UBadge>
       </div>
 
       <UButton
+        v-if="canWrite"
         to="/admin/employees/create"
         icon="i-lucide-plus"
       >
