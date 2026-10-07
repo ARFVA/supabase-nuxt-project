@@ -6,6 +6,7 @@ import {
   type Employee,
   type EmployeeInput
 } from '~/services/employeeService'
+import { removeEmployeePhoto } from '~/services/photoService'
 
 // Halaman UPDATE (+ aksi Delete) — area admin terproteksi middleware.
 definePageMeta({ layout: 'admin' })
@@ -15,11 +16,14 @@ const route = useRoute()
 const toast = useToast()
 const config = useRuntimeConfig()
 
+// Role dari tabel profiles (UX gating) — enforcement tetap di RLS.
+const { canWrite, isAdmin } = useUserRole()
+
 const employeeId = computed(() => route.params.id as string)
 
-// Feature flag delete (SOP/GRC/DEV-SPB/2026/008 bab 1.3).
+// Feature flag delete (SOP/GRC/DEV-SPB/2026/008 bab 1.3) + role admin.
 const showDelete = computed(
-  () => config.public.enableDeleteEmployee === true
+  () => config.public.enableDeleteEmployee === true && isAdmin.value
 )
 
 const employee = ref<Employee | null>(null)
@@ -69,6 +73,10 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await deleteEmployee(employeeId.value)
+    // Bersihkan foto dari Storage (best-effort)
+    if (employee.value?.photo_url) {
+      await removeEmployeePhoto(employee.value.photo_url)
+    }
     toast.add({ title: 'Employee deleted', color: 'success' })
     deleteModalOpen.value = false
     await navigateTo('/admin/employees')
@@ -122,7 +130,7 @@ async function confirmDelete() {
     />
 
     <UCard
-      v-else-if="employee"
+      v-else-if="employee && canWrite"
       class="max-w-2xl"
     >
       <EmployeeForm
@@ -130,6 +138,19 @@ async function confirmDelete() {
         submit-label="Save changes"
         :loading="saving"
         @submit="handleSubmit"
+      />
+    </UCard>
+
+    <UCard
+      v-else-if="employee"
+      class="max-w-2xl"
+    >
+      <UAlert
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-lock"
+        title="Read-only"
+        description="Your role can view this employee but not edit it (required: admin or leader)."
       />
     </UCard>
 

@@ -45,6 +45,7 @@ const roleColors: Record<Employee['role'], 'primary' | 'warning' | 'neutral'> = 
     <template #full_name-cell="{ row }">
       <div class="flex items-center gap-2">
         <UAvatar
+          :src="row.original.photo_url ?? undefined"
           :alt="row.original.full_name"
           size="xs"
         />
