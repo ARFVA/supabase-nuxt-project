@@ -30,6 +30,15 @@ Format ini mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - REST API `/api/employees` (GET, GET :id, POST, PUT :id, DELETE :id)
   dengan autentikasi sesi (401), validasi payload di server (400), dan
   pemetaan error RLS (403/404) — dokumentasi di `docs/api.md`.
-- Migrasi SQL: role-based RLS (`002`), storage foto (`003`), realtime (`004`).
+- Role-Based RLS: tabel `profiles` + trigger pendaftaran + function
+  `get_my_role()`; policy employees per-role (staff read-only, leader
+  create/update, admin full) — `docs/sql/002_role_based_rls.sql`.
+- UI role-aware (`useUserRole`): badge role di header admin, tombol aksi
+  menyembunyikan diri untuk role yang tidak berwenang.
+- Upload foto karyawan ke Supabase Storage (`employee-photos`): validasi
+  format/ukuran 5 MB, kompresi & resize otomatis di klien sebelum upload,
+  pembersihan object saat foto diganti/dihapus — `docs/sql/003_storage.sql`.
+- Realtime: tabel employees live-update via `postgres_changes` dengan
+  indikator "Live" dan toast notifikasi perubahan — `docs/sql/004_realtime.sql`.
 
 

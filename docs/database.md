@@ -19,19 +19,31 @@
 SQL lengkap (pembuatan tabel + seed + kebijakan RLS):
 [`sql/001_create_employees.sql`](sql/001_create_employees.sql)
 
-## Permission (Row Level Security)
+## Permission (Row Level Security — Role-Based)
 
-| Role Supabase | SELECT | INSERT | UPDATE | DELETE |
-| ------------- | ------ | ------ | ------ | ------ |
+Role user disimpan di tabel `public.profiles` (dibuat otomatis oleh trigger
+saat user mendaftar, default `staff`) dan dibaca oleh policy melalui
+function `public.get_my_role()` (SECURITY DEFINER).
+
+| Role | SELECT | INSERT | UPDATE | DELETE |
+| ---- | ------ | ------ | ------ | ------ |
 | `anon` (belum login) | ❌ | ❌ | ❌ | ❌ |
-| `authenticated` (sudah login) | ✅ | ✅ | ✅ | ✅ |
+| `staff` | ✅ | ❌ | ❌ | ❌ |
+| `leader` | ✅ | ✅ | ✅ | ❌ |
+| `admin` | ✅ | ✅ | ✅ | ✅ |
 
 Catatan:
 
 - Kebijakan didefinisikan **di database (RLS)**, bukan di frontend, sehingga
-  user yang memanipulasi request dari browser tetap diblokir server.
-- Nilai `role` pada baris data hanyalah **data** (ditampilkan sebagai badge);
-  frontend tidak melakukan branching permission berdasarkan nilai tersebut.
+  user yang memanipulasi request dari browser tetap diblokir server
+  (REST API kita memetakan error RLS `42501` → respons `403`).
+- Nilai `role` dibaca UI dari tabel `profiles` (`useUserRole`) **hanya untuk
+  UX** (menampilkan/menyembunyikan tombol) — bukan sumber kebenaran
+  permission (SOP: "Hindari hardcode role di frontend").
+- **Storage** (`employee-photos`): upload/delete hanya `authenticated`,
+  baca publik; batas 5 MB & format jpeg/png/webp di-enforce level bucket.
+- **Realtime**: tabel `employees` terdaftar pada publication
+  `supabase_realtime`; client menerima event INSERT/UPDATE/DELETE.
 
 ## Dokumentasi Query CRUD
 
