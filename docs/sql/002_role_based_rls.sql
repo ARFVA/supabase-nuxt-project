@@ -3,35 +3,69 @@
 -- SOP: SOP/GRC/DEV-COD/2026/002 — "Role & permission harus jelas"
 -- Jalankan di: Supabase Dashboard -> SQL Editor -> Run
 --
--- Catatan revisi: script ini kompatibel dengan tabel `profiles`
--- yang mungkin SUDAH ada di database (skema berbeda) — kolom email
--- & role dijamin ada lewat ALTER, dan semua insert selalu membawa
--- email dari auth.users (menangani kolom email NOT NULL).
+-- Kompatibel dengan tabel `profiles` lama (skema existing):
+--   id(uuid), email(not null), full_name(not null), role(not null,
+--   default 'user'), is_active(not null), deleted_at, created_at,
+--   updated_at
+-- Perubahan: kolom diisi lengkap dari auth.users, constraint role
+-- lama diganti dengan sistem admin/leader/staff.
 -- ============================================================
 
--- 1. Tabel profiles: role setiap user auth (admin / leader / staff).
---    Dibuat hanya jika belum ada.
+-- 1. Tabel profiles: dibuat hanya jika BELUM ada.
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
-  email text,
-  full_name text,
+  email text not null,
+  full_name text not null,
   role text not null default 'staff'
         check (role in ('admin', 'leader', 'staff')),
+  is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
 
---    Jika tabel sudah ada dari sebelumnya, jamin kolom penting ini ada.
+--    Jika tabel lama sudah ada, jamin kolom penting tersedia.
 alter table public.profiles
   add column if not exists email text;
 alter table public.profiles
   add column if not exists full_name text;
 alter table public.profiles
-  add column if not exists role text not null default 'staff'
+  add column if not exists role text not null default 'staff';
+
+--    Normalisasi nilai role lama (mis. 'user') sebelum pasang check baru.
+update public.profiles
+set role = 'staff'
+where role not in ('admin', 'leader', 'staff');
+
+-- 1b. Ganti SEMUA check constraint lama pada kolom `role`
+--     (mis. role in ('user', ...)) dengan sistem role kita.
+do $$
+declare
+  constraint_record record;
+begin
+  for constraint_record in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.profiles'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%role%'
+  loop
+    execute format(
+      'alter table public.profiles drop constraint %I',
+      constraint_record.conname
+    );
+  end loop;
+end;
+$$;
+
+alter table public.profiles
+  add constraint profiles_role_check
   check (role in ('admin', 'leader', 'staff'));
 
+alter table public.profiles
+  alter column role set default 'staff';
+
 -- 2. Trigger: otomatis buat profile (role 'staff') saat user baru dibuat.
---    Menggunakan SECURITY DEFINER supaya tidak terblokir RLS.
---    email & full_name diisi dari auth.users (kolom NOT NULL di profiles).
+--    SECURITY DEFINER supaya tidak terblokir RLS.
+--    CATATAN: kolom metadata di auth.users bernama raw_user_meta_data.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -44,7 +78,7 @@ begin
     new.id,
     coalesce(new.email, ''),
     coalesce(
-      new.user_metadata ->> 'full_name',
+      new.raw_user_meta_data ->> 'full_name',
       split_part(coalesce(new.email, 'user'), '@', 1)
     ),
     'staff'
@@ -67,7 +101,7 @@ select
   u.id,
   coalesce(u.email, ''),
   coalesce(
-    u.user_metadata ->> 'full_name',
+    u.raw_user_meta_data ->> 'full_name',
     split_part(coalesce(u.email, 'user'), '@', 1)
   ),
   'admin'
