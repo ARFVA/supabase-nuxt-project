@@ -30,11 +30,6 @@ alter table public.profiles
 alter table public.profiles
   add column if not exists role text not null default 'staff';
 
---    Normalisasi nilai role lama (mis. 'user') sebelum pasang check baru.
-update public.profiles
-set role = 'staff'
-where role not in ('admin', 'leader', 'staff');
-
 -- 1b. Ganti SEMUA check constraint lama pada kolom `role`
 --     (mis. role in ('user', ...)) dengan sistem role kita.
 do $$
@@ -55,6 +50,12 @@ begin
   end loop;
 end;
 $$;
+
+--    Normalisasi data role lama (mis. 'user') → 'staff'
+--    SEBELUM check baru dipasang (adder check memvalidasi seluruh data).
+update public.profiles
+set role = 'staff'
+where role not in ('admin', 'leader', 'staff');
 
 alter table public.profiles
   add constraint profiles_role_check
@@ -93,8 +94,9 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- 3. User yang terdaftar SEBELUM trigger ada → buatkan profilnya.
---    CATATAN DEVELOPMENT: semua user lama di-set 'admin'.
+-- 3. User yang terdaftar SEBELUM trigger ada → buatkan / perbarui profilnya.
+--    CATATAN DEVELOPMENT: semua user lama di-set 'admin' (UPSERT —
+--    menangani kasus baris profile yang sudah ada sebelumnya).
 --    Di production, atur role per user secara manual/terencana.
 insert into public.profiles (id, email, full_name, role)
 select
@@ -106,7 +108,7 @@ select
   ),
   'admin'
 from auth.users u
-on conflict (id) do nothing;
+on conflict (id) do update set role = 'admin';
 
 -- 4. Function untuk membaca role sendiri.
 --    SECURITY DEFINER: pemanggilan dari policy employees tidak
