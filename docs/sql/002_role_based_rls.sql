@@ -14,6 +14,7 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text,
+  full_name text,
   role text not null default 'staff'
         check (role in ('admin', 'leader', 'staff')),
   created_at timestamptz not null default now()
@@ -23,11 +24,14 @@ create table if not exists public.profiles (
 alter table public.profiles
   add column if not exists email text;
 alter table public.profiles
+  add column if not exists full_name text;
+alter table public.profiles
   add column if not exists role text not null default 'staff'
   check (role in ('admin', 'leader', 'staff'));
 
 -- 2. Trigger: otomatis buat profile (role 'staff') saat user baru dibuat.
 --    Menggunakan SECURITY DEFINER supaya tidak terblokir RLS.
+--    email & full_name diisi dari auth.users (kolom NOT NULL di profiles).
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -35,8 +39,16 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, role)
-  values (new.id, new.email, 'staff')
+  insert into public.profiles (id, email, full_name, role)
+  values (
+    new.id,
+    coalesce(new.email, ''),
+    coalesce(
+      new.user_metadata ->> 'full_name',
+      split_part(coalesce(new.email, 'user'), '@', 1)
+    ),
+    'staff'
+  )
   on conflict (id) do nothing;
   return new;
 end;
@@ -50,8 +62,15 @@ create trigger on_auth_user_created
 -- 3. User yang terdaftar SEBELUM trigger ada → buatkan profilnya.
 --    CATATAN DEVELOPMENT: semua user lama di-set 'admin'.
 --    Di production, atur role per user secara manual/terencana.
-insert into public.profiles (id, email, role)
-select u.id, coalesce(u.email, ''), 'admin'
+insert into public.profiles (id, email, full_name, role)
+select
+  u.id,
+  coalesce(u.email, ''),
+  coalesce(
+    u.user_metadata ->> 'full_name',
+    split_part(coalesce(u.email, 'user'), '@', 1)
+  ),
+  'admin'
 from auth.users u
 on conflict (id) do nothing;
 
