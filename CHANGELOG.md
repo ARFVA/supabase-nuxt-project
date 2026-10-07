@@ -24,3 +24,12 @@ Format ini mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Workaround bug Nuxt 4.6.0 di Windows (nuxt/nuxt#36467) melalui
   `nitro.externals.inline` — semua halaman SSR mengembalikan 500 tanpa ini.
 
+## [Unreleased]
+
+### Added
+- REST API `/api/employees` (GET, GET :id, POST, PUT :id, DELETE :id)
+  dengan autentikasi sesi (401), validasi payload di server (400), dan
+  pemetaan error RLS (403/404) — dokumentasi di `docs/api.md`.
+- Migrasi SQL: role-based RLS (`002`), storage foto (`003`), realtime (`004`).
+
+

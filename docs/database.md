@@ -35,8 +35,9 @@ Catatan:
 
 ## Dokumentasi Query CRUD
 
-Semua query dipusatkan di `app/services/employeeService.ts` (layer service,
-terpisah dari view). Ringkasan operasinya:
+Alur eksekusi query: UI → `app/services/employeeService.ts` (konsumsi REST)
+→ `server/api/employees/*` (menjalankan query + validasi di server) → Supabase.
+Detail endpoint: [api.md](api.md). Ringkasan operasinya:
 
 | # | Function                     | Query Supabase (ringkas)                                              | Halaman |
 | - | ---------------------------- | --------------------------------------------------------------------- | ------- |

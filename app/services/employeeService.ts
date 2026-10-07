@@ -1,17 +1,19 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-
 /**
- * Layer service untuk operasi CRUD tabel `public.employees`.
+ * Layer service untuk operasi CRUD karyawan.
  *
- * Dipusatkan di satu file (SOP/GRC/DEV-COD/2026/002):
- * - "Pisahkan logic, view, dan service"
- * - "Query [Supabase] harus terdokumentasi" — setiap function memiliki JSDoc
- *   yang menjelaskan query yang dijalankan, dan ringkasannya ada di
- *   docs/database.md.
+ * Arsitektur (SOP/GRC/DEV-COD/2026/002 — "pisahkan logic, view, dan service"):
  *
- * Keamanan: semua operasi bergantung pada Row Level Security di database —
- * hanya user terautentikasi yang lolos policy. Tidak ada logic permission
- * yang di-hardcode di frontend.
+ *   Browser (pages/components)
+ *        │  $fetch
+ *        ▼
+ *   REST API Nuxt  →  /api/employees   (server/api/employees/*)
+ *        │  serverSupabaseClient (membawa sesi user login)
+ *        ▼
+ *   Supabase PostgREST  →  PostgreSQL (dengan RLS)
+ *
+ * Semua query, validasi, dan pengecekan otorisasi berada di server —
+ * tidak ada logika permission yang di-hardcode di frontend.
+ * Dokumentasi API lengkap: docs/api.md & docs/database.md.
  */
 
 /** Baris tabel public.employees (field DB memakai snake_case). */
@@ -24,6 +26,7 @@ export interface Employee {
   role: EmployeeRole
   is_active: boolean
   created_at: string
+  photo_url: string | null
 }
 
 export type EmployeeRole = 'admin' | 'leader' | 'staff'
@@ -32,124 +35,99 @@ export type EmployeeRole = 'admin' | 'leader' | 'staff'
 export type EmployeeInput = Omit<Employee, 'id' | 'created_at'>
 
 /**
- * READ — ambil daftar karyawan, terbaru di atas.
- *
- * Query Supabase:
- *   from('employees').select('*').order('created_at', { ascending: false })
- *   + jika search terisi:
- *     .or('full_name.ilike.%q%,email.ilike.%q%')
- *
- * @param search kata kunci pencarian (nama atau email), kosong = semua data
- * @throws Error dari Supabase jika query gagal
+ * Ekstrak pesan error yang berguna dari error $fetch (REST API).
+ * Format error Nitro: { statusCode, message }.
  */
-export async function getEmployees(search = ''): Promise<Employee[]> {
-  const supabase = useSupabaseClient<SupabaseClient>()
-  let query = supabase
-    .from('employees')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  const term = search.trim()
-  if (term) {
-    const pattern = `%${term}%`
-    query = query.or(`full_name.ilike.${pattern},email.ilike.${pattern}`)
+function extractApiError(error: unknown): string {
+  const fetchError = error as {
+    data?: { message?: string; statusMessage?: string }
+    message?: string
   }
-
-  const { data, error } = await query
-  if (error) {
-    throw new Error(error.message)
-  }
-  return data as Employee[]
+  return (
+    fetchError?.data?.message ||
+    fetchError?.data?.statusMessage ||
+    fetchError?.message ||
+    'Unexpected error'
+  )
 }
 
 /**
- * READ (satu baris) — ambil detail karyawan berdasar id.
+ * READ — daftar karyawan (terbaru di atas, opsional pencarian).
  *
- * Query Supabase:
- *   from('employees').select('*').eq('id', id).single()
+ * REST: GET /api/employees?search=<kata kunci>
+ * @throws Error dengan pesan dari server jika request gagal
+ */
+export async function getEmployees(search = ''): Promise<Employee[]> {
+  try {
+    return await $fetch<Employee[]>('/api/employees', {
+      query: search ? { search } : {}
+    })
+  } catch (error) {
+    throw new Error(extractApiError(error))
+  }
+}
+
+/**
+ * READ (satu baris) — detail karyawan berdasar id.
  *
- * @throws Error jika id tidak ditemukan atau akses ditolak RLS
+ * REST: GET /api/employees/:id
+ * @throws Error jika id tidak ditemukan
  */
 export async function getEmployee(id: string): Promise<Employee> {
-  const supabase = useSupabaseClient<SupabaseClient>()
-  const { data, error } = await supabase
-    .from('employees')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    throw new Error(error.message)
+  try {
+    return await $fetch<Employee>(`/api/employees/${id}`)
+  } catch (error) {
+    throw new Error(extractApiError(error))
   }
-  return data as Employee
 }
 
 /**
  * CREATE — simpan karyawan baru.
  *
- * Query Supabase:
- *   from('employees').insert(payload).select('*').single()
- *
- * @returns baris yang baru dibuat (termasuk id & created_at)
- * @throws Error jika validasi database (unique email, CHECK role) gagal
+ * REST: POST /api/employees  (validasi dijalankan di server)
+ * @returns baris yang baru dibuat
  */
 export async function createEmployee(payload: EmployeeInput): Promise<Employee> {
-  const supabase = useSupabaseClient<SupabaseClient>()
-  const { data, error } = await supabase
-    .from('employees')
-    .insert(payload)
-    .select('*')
-    .single()
-
-  if (error) {
-    throw new Error(error.message)
+  try {
+    return await $fetch<Employee>('/api/employees', {
+      method: 'POST',
+      body: payload
+    })
+  } catch (error) {
+    throw new Error(extractApiError(error))
   }
-  return data as Employee
 }
 
 /**
  * UPDATE — ubah data karyawan berdasar id.
  *
- * Query Supabase:
- *   from('employees').update(payload).eq('id', id).select('*').single()
- *
+ * REST: PUT /api/employees/:id  (validasi dijalankan di server)
  * @returns baris setelah diperbarui
- * @throws Error jika id tidak ditemukan / akses ditolak
  */
 export async function updateEmployee(
   id: string,
   payload: EmployeeInput
 ): Promise<Employee> {
-  const supabase = useSupabaseClient<SupabaseClient>()
-  const { data, error } = await supabase
-    .from('employees')
-    .update(payload)
-    .eq('id', id)
-    .select('*')
-    .single()
-
-  if (error) {
-    throw new Error(error.message)
+  try {
+    return await $fetch<Employee>(`/api/employees/${id}`, {
+      method: 'PUT',
+      body: payload
+    })
+  } catch (error) {
+    throw new Error(extractApiError(error))
   }
-  return data as Employee
 }
 
 /**
  * DELETE — hapus karyawan berdasar id.
  *
- * Query Supabase:
- *   from('employees').delete().eq('id', id)
- *
- * @throws Error jika akses ditolak RLS
+ * REST: DELETE /api/employees/:id
+ * @throws Error 403 jika role tidak diizinkan (policy RLS)
  */
 export async function deleteEmployee(id: string): Promise<void> {
-  const supabase = useSupabaseClient<SupabaseClient>()
-  const { error } = await supabase
-    .from('employees')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    throw new Error(error.message)
+  try {
+    await $fetch<void>(`/api/employees/${id}`, { method: 'DELETE' })
+  } catch (error) {
+    throw new Error(extractApiError(error))
   }
 }
