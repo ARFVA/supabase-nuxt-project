@@ -2,15 +2,29 @@
 -- Migrasi 002: Role-Based RLS
 -- SOP: SOP/GRC/DEV-COD/2026/002 — "Role & permission harus jelas"
 -- Jalankan di: Supabase Dashboard -> SQL Editor -> Run
+--
+-- Catatan revisi: script ini kompatibel dengan tabel `profiles`
+-- yang mungkin SUDAH ada di database (skema berbeda) — kolom email
+-- & role dijamin ada lewat ALTER, dan semua insert selalu membawa
+-- email dari auth.users (menangani kolom email NOT NULL).
 -- ============================================================
 
--- 1. Tabel profiles: role setiap user auth (admin / leader / staff)
+-- 1. Tabel profiles: role setiap user auth (admin / leader / staff).
+--    Dibuat hanya jika belum ada.
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
+  email text,
   role text not null default 'staff'
         check (role in ('admin', 'leader', 'staff')),
   created_at timestamptz not null default now()
 );
+
+--    Jika tabel sudah ada dari sebelumnya, jamin kolom penting ini ada.
+alter table public.profiles
+  add column if not exists email text;
+alter table public.profiles
+  add column if not exists role text not null default 'staff'
+  check (role in ('admin', 'leader', 'staff'));
 
 -- 2. Trigger: otomatis buat profile (role 'staff') saat user baru dibuat.
 --    Menggunakan SECURITY DEFINER supaya tidak terblokir RLS.
@@ -21,8 +35,8 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, role)
-  values (new.id, 'staff')
+  insert into public.profiles (id, email, role)
+  values (new.id, new.email, 'staff')
   on conflict (id) do nothing;
   return new;
 end;
@@ -36,8 +50,9 @@ create trigger on_auth_user_created
 -- 3. User yang terdaftar SEBELUM trigger ada → buatkan profilnya.
 --    CATATAN DEVELOPMENT: semua user lama di-set 'admin'.
 --    Di production, atur role per user secara manual/terencana.
-insert into public.profiles (id, role)
-select id, 'admin' from auth.users
+insert into public.profiles (id, email, role)
+select u.id, coalesce(u.email, ''), 'admin'
+from auth.users u
 on conflict (id) do nothing;
 
 -- 4. Function untuk membaca role sendiri.
