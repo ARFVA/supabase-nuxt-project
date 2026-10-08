@@ -54,6 +54,22 @@ const roleOptions: { label: string; value: EmployeeRole }[] = [
   { label: 'Staff', value: 'staff' }
 ]
 
+// UInput/UTextarea hanya menerima string | undefined, sedangkan
+// field DB phone/address bertipe string | null — jembatani lewat computed.
+const phoneModel = computed<string>({
+  get: () => form.phone ?? '',
+  set: (value) => {
+    form.phone = value
+  }
+})
+
+const addressModel = computed<string>({
+  get: () => form.address ?? '',
+  set: (value) => {
+    form.address = value
+  }
+})
+
 /**
  * Validasi form. Mengembalikan true jika lolos.
  * Pesan error per-field ditulis ke reactive `errors`.
@@ -224,7 +240,7 @@ async function handleSubmit() {
       :error="errors.phone"
     >
       <UInput
-        v-model="form.phone"
+        v-model="phoneModel"
         name="phone"
         placeholder="081234567890"
         class="w-full"
@@ -236,7 +252,7 @@ async function handleSubmit() {
       name="address"
     >
       <UTextarea
-        v-model="form.address"
+        v-model="addressModel"
         name="address"
         placeholder="Street, city…"
         class="w-full"
