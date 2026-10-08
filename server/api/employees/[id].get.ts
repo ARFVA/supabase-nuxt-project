@@ -21,6 +21,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const id = getRouterParam(event, 'id')
+  if (!id) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Bad Request',
+      message: 'Employee id is required'
+    })
+  }
   const supabase = await serverSupabaseClient(event)
 
   const { data, error } = await supabase

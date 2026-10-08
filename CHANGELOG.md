@@ -5,6 +5,12 @@ Format ini mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Type safety: tambah `app/types/database.types.ts` (database fully-typed,
+  menggantikan `Database = unknown`), guard `getRouterParam` (400 jika id
+  kosong), dan bridge `string | null` → `string` untuk v-model form.
+  `npx nuxi typecheck` kini bersih (0 error).
+
 ## [v0.2.0-beta.1] - 2026-10-07
 
 ### Added
