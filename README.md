@@ -14,6 +14,8 @@ Fitur utama:
 - **Role-Based RLS**: staff (read-only), leader (create/update), admin (full).
 - **Storage**: upload foto karyawan (kompresi klien, batas 5 MB sesuai SOP).
 - **Realtime**: tabel live-update dari perubahan sesi/tab lain.
+- **Import Excel**: admin dapat mengunggah workbook `.xlsx` untuk diimpor
+  melalui Edge Function (lihat [`docs/setup.md`](docs/setup.md)).
 - Endpoint identitas versi `GET /version`.
 
 ## Tech Stack
@@ -77,4 +79,3 @@ Detail lengkap: [`docs/setup.md`](docs/setup.md).
 - `main` → production, `develop` → development, `feat/*` → fitur baru.
 - Commit message: `<type>: [XX] short description`
   (contoh: `feat: [RA] add employee list page`).
-

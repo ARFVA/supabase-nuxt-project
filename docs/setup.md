@@ -83,3 +83,54 @@ Setelah berjalan, info versi dapat diakses melalui:
 ```
 GET http://localhost:3000/version
 ```
+
+## Import Excel karyawan (uji manual)
+
+Fitur import menggunakan bucket privat `employee-imports`, tabel
+`employee_import_jobs`, dan Supabase Edge Function `import-employees`.
+Gunakan data dummy saat menguji.
+
+1. Pastikan bucket `employee-imports` bersifat **private**, mengizinkan MIME
+   `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, dan
+   membatasi ukuran file maksimal 5 MB.
+2. Jalankan [`sql/005_employee_import.sql`](./sql/005_employee_import.sql)
+   melalui SQL Editor pada project yang dipilih.
+3. Pasang Supabase CLI, lalu link CLI ke project yang sama:
+
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <PROJECT_REF>
+   ```
+
+4. Atur secret function `IMPORT_CRON_SECRET` melalui Dashboard → **Edge
+   Functions → Secrets**. Buat rahasia acak panjang di mesin lokal, misalnya:
+
+   ```bash
+   node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+   ```
+
+   Tempel nilai tersebut ke Dashboard sebagai `IMPORT_CRON_SECRET`; jangan
+   kirim ke chat atau commit. Supabase menyediakan `SUPABASE_URL`,
+   `SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` otomatis di Edge
+   Function. Service-role key tidak boleh ditempatkan di frontend atau
+   dideklarasikan ulang sebagai secret.
+
+5. Deploy function:
+
+   ```bash
+   npx supabase functions deploy import-employees --project-ref <PROJECT_REF>
+   ```
+
+6. Login sebagai user yang mempunyai `profiles.role = 'admin'`, buka
+   `/admin/import`, unggah `.xlsx`, lalu periksa status dan jumlah baris.
+   Function dipanggil manual oleh halaman setelah file dan job antrean dibuat.
+7. Template workbook harus memakai sheet pertama dan header:
+   `full_name`, `email`, `phone`, `address`, `role`, `is_active`, `photo_url`.
+   `full_name` dan `email` wajib; kolom lain boleh kosong. Jangan sertakan
+   `id` atau `created_at` karena database mengisinya otomatis. Email yang
+   sudah ada akan diperbarui berdasarkan email. File dibatasi 5 MB dan 1.000
+   baris; email duplikat dalam satu file membuat seluruh import gagal.
+
+Cron **belum dijadwalkan**. Aktifkan hanya setelah alur upload dan pemrosesan
+manual berhasil diuji. Function menerima panggilan terjadwal menggunakan
+`IMPORT_CRON_SECRET`; jangan bagikan secret tersebut.

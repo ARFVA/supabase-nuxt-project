@@ -21,6 +21,7 @@
     "@iconify-json/lucide": "^1.2.140",
     "@nuxt/nitro-server": "^4.6.0",
     "@rolldown/binding-win32-x64-msvc": "^1.2.12",
+    "supabase": "^2.121.0",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.3.12"
   }

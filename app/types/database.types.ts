@@ -84,6 +84,42 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_import_jobs: {
+        Row: {
+          id: string
+          created_by: string
+          object_path: string
+          status: 'pending' | 'processing' | 'completed' | 'failed'
+          total_rows: number | null
+          imported_rows: number | null
+          error_message: string | null
+          created_at: string
+          processed_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_by: string
+          object_path: string
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          total_rows?: number | null
+          imported_rows?: number | null
+          error_message?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_by?: string
+          object_path?: string
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          total_rows?: number | null
+          imported_rows?: number | null
+          error_message?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

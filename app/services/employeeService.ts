@@ -52,15 +52,19 @@ function extractApiError(error: unknown): string {
 }
 
 /**
- * READ — daftar karyawan (terbaru di atas, opsional pencarian).
+ * READ — daftar karyawan (terbaru di atas, opsional pencarian, pagination).
  *
- * REST: GET /api/employees?search=<kata kunci>
+ * REST: GET /api/employees?search=<kata kunci>&page=<halaman>&limit=<limit>
  * @throws Error dengan pesan dari server jika request gagal
  */
-export async function getEmployees(search = ''): Promise<Employee[]> {
+export async function getEmployees(
+  search = '',
+  page = 1,
+  limit = 10
+): Promise<{ data: Employee[]; total: number; page: number; limit: number }> {
   try {
-    return await $fetch<Employee[]>('/api/employees', {
-      query: search ? { search } : {}
+    return await $fetch('/api/employees', {
+      query: { search, page, limit }
     })
   } catch (error) {
     throw new Error(extractApiError(error))

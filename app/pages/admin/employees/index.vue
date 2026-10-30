@@ -25,6 +25,9 @@ const employees = ref<Employee[]>([])
 const loading = ref(false)
 const search = ref('')
 const loadError = ref('')
+const page = ref(1)
+const limit = ref(10)
+const total = ref(0)
 
 // State modal hapus
 const deleteModalOpen = ref(false)
@@ -38,8 +41,12 @@ let realtimeChannel: ReturnType<typeof supabase.channel> | null = null
 async function loadData() {
   loading.value = true
   loadError.value = ''
+  console.log('Loading data with page:', page.value, 'limit:', limit.value, 'search:', search.value)
   try {
-    employees.value = await getEmployees(search.value)
+    const result = await getEmployees(search.value, page.value, limit.value)
+    employees.value = result.data
+    total.value = result.total
+    console.log('Loaded', result.data.length, 'employees, total:', result.total)
   } catch (error) {
     loadError.value = (error as Error).message
     toast.add({
@@ -55,9 +62,19 @@ async function loadData() {
 // Debounce pencarian 300ms agar tidak query tiap ketikan.
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 watch(search, () => {
+  page.value = 1 // Reset ke halaman 1 saat search berubah
   clearTimeout(searchTimer)
   searchTimer = setTimeout(() => loadData(), 300)
 })
+
+// Load data saat page berubah
+watch(page, () => {
+  console.log('Page changed to:', page.value)
+  loadData()
+})
+
+// Hitung total halaman
+const totalPages = computed(() => Math.ceil(total.value / limit.value))
 
 onMounted(() => {
   loadData()
@@ -155,6 +172,15 @@ async function confirmDelete() {
           {{ realtimeConnected ? 'Live' : 'Realtime off' }}
         </UBadge>
       </div>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <UInput
+        v-model="search"
+        icon="i-lucide-search"
+        placeholder="Search by name or email…"
+        class="w-full max-w-sm"
+      />
 
       <UButton
         v-if="canWrite"
@@ -164,13 +190,6 @@ async function confirmDelete() {
         Add employee
       </UButton>
     </div>
-
-    <UInput
-      v-model="search"
-      icon="i-lucide-search"
-      placeholder="Search by name or email…"
-      class="w-full max-w-sm"
-    />
 
     <UAlert
       v-if="loadError"
@@ -202,6 +221,62 @@ async function confirmDelete() {
       @edit="handleEdit"
       @delete="handleDelete"
     />
+
+    <div
+      v-if="total > 0"
+      class="mt-4 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+    >
+      <p class="text-sm text-gray-600 dark:text-gray-400">
+        Showing {{ (page - 1) * limit + 1 }} to {{ Math.min(page * limit, total) }} of {{ total }} employees
+      </p>
+
+      <div class="flex items-center gap-2">
+        <UButton
+          icon="i-lucide-chevron-left"
+          :disabled="page === 1"
+          variant="outline"
+          size="sm"
+          @click="page--; loadData()"
+        />
+
+        <div class="flex items-center gap-1">
+          <UButton
+            v-if="page > 1"
+            variant="outline"
+            size="sm"
+            @click="page--; loadData()"
+          >
+            {{ page - 1 }}
+          </UButton>
+
+          <UButton
+            :variant="'solid'"
+            size="sm"
+          >
+            {{ page }}
+          </UButton>
+
+          <span v-if="page < totalPages" class="text-sm text-gray-500">...</span>
+
+          <UButton
+            v-if="page < totalPages"
+            variant="outline"
+            size="sm"
+            @click="page = totalPages; loadData()"
+          >
+            {{ totalPages }}
+          </UButton>
+        </div>
+
+        <UButton
+          icon="i-lucide-chevron-right"
+          :disabled="page === totalPages"
+          variant="outline"
+          size="sm"
+          @click="page++; loadData()"
+        />
+      </div>
+    </div>
 
     <EmployeeDeleteModal
       v-model:open="deleteModalOpen"

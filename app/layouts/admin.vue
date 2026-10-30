@@ -8,7 +8,8 @@ const { role } = useUserRole()
 
 const menuItems = [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/admin' },
-  { label: 'Employees', icon: 'i-lucide-users', to: '/admin/employees' }
+  { label: 'Employees', icon: 'i-lucide-users', to: '/admin/employees' },
+  { label: 'Excel Import', icon: 'i-lucide-file-spreadsheet', to: '/admin/import' }
 ]
 
 const accountLabel = computed(() => user.value?.email ?? 'Administrator')
